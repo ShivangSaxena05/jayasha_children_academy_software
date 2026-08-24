@@ -276,13 +276,16 @@ class OnboardingRepositoryImpl implements OnboardingRepository {
   Future<void> syncOnboardingData() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(_tokenKey);
-    if (token == null) return;
+    if (token == null) {
+      print('DEBUG: No auth token found, skipping sync.');
+      return;
+    }
 
     // 1. Sync Academic Session & Classes
     final session = await getAcademicSession();
     if (session != null) {
       print('DEBUG: Syncing academic session...');
-      final response = await http.post(
+      final sessionResponse = await http.post(
         Uri.parse(ApiConfig.academicSession),
         headers: {
           'Content-Type': 'application/json',
@@ -290,68 +293,89 @@ class OnboardingRepositoryImpl implements OnboardingRepository {
         },
         body: jsonEncode(session.toJson()),
       );
-      print('DEBUG: Sync academic session status: ${response.statusCode}');
 
-      // 2. Sync Fees (Now that classes are created on server)
-      final feesJson = prefs.getString(_feesKey);
-      if (feesJson != null) {
-        print('DEBUG: Syncing fee structure...');
-        final Map<String, dynamic> fees = jsonDecode(feesJson);
+      print('DEBUG: Sync academic session status: ${sessionResponse.statusCode}');
 
-        // Get created classes from server to match IDs
-        final classesResponse = await http.get(
-          Uri.parse(ApiConfig.classes),
-          headers: {'Authorization': 'Bearer $token'},
-        );
+      if (sessionResponse.statusCode == 200 || sessionResponse.statusCode == 201) {
+        final sessionData = jsonDecode(sessionResponse.body);
+        final sessionId = sessionData['_id'];
 
-        if (classesResponse.statusCode == 200) {
-          final List<dynamic> serverClasses = jsonDecode(classesResponse.body);
-          final sessionData = jsonDecode(response.body);
-          final sessionId = sessionData['_id'];
+        // 2. Sync Fees (Requires classes created above)
+        final feesJson = prefs.getString(_feesKey);
+        if (feesJson != null) {
+          print('DEBUG: Syncing fee structure...');
+          final Map<String, dynamic> fees = jsonDecode(feesJson);
 
-          final List<Map<String, dynamic>> feePayload = [];
+          // Get created classes from server for THIS session to match IDs
+          final classesResponse = await http.get(
+            Uri.parse('${ApiConfig.classes}?sessionId=$sessionId'),
+            headers: {'Authorization': 'Bearer $token'},
+          );
 
-          for (var entry in fees.entries) {
-            final className = entry.key;
-            final components = entry.value as Map<String, dynamic>;
+          if (classesResponse.statusCode == 200) {
+            final List<dynamic> serverClasses = jsonDecode(classesResponse.body);
+            final List<Map<String, dynamic>> feePayload = [];
 
-            final serverClass = serverClasses.firstWhere(
-              (c) => c['name'] == className,
-              orElse: () => null,
-            );
+            for (var entry in fees.entries) {
+              final className = entry.key;
+              final components = entry.value as Map<String, dynamic>;
 
-            if (serverClass != null) {
-              feePayload.add({
-                'academicSessionId': sessionId,
-                'classId': serverClass['_id'],
-                'components': [
-                  {'name': 'Monthly Tuition Fee', 'amount': components['Monthly Tuition Fee'], 'frequency': 'monthly'},
-                  {'name': 'Annual Admission Fee', 'amount': components['Annual Admission Fee'], 'frequency': 'annually'},
-                  {'name': 'Examination Fee', 'amount': components['Examination Fee'], 'frequency': 'term-wise'},
-                ]
-              });
+              final serverClass = serverClasses.firstWhere(
+                (c) => (c['name'] == className),
+                orElse: () => null,
+              );
+
+              if (serverClass != null) {
+                feePayload.add({
+                  'academicSessionId': sessionId,
+                  'classId': serverClass['_id'],
+                  'components': [
+                    {
+                      'name': 'Monthly Tuition Fee',
+                      'amount': components['Monthly Tuition Fee'],
+                      'frequency': 'monthly'
+                    },
+                    {
+                      'name': 'Annual Admission Fee',
+                      'amount': components['Annual Admission Fee'],
+                      'frequency': 'annually'
+                    },
+                    {
+                      'name': 'Examination Fee',
+                      'amount': components['Examination Fee'],
+                      'frequency': 'term-wise'
+                    },
+                  ]
+                });
+              } else {
+                print('DEBUG: Could not find server class ID for $className');
+              }
             }
-          }
 
-          if (feePayload.isNotEmpty) {
-            final feeResponse = await http.post(
-              Uri.parse('${ApiConfig.baseUrl}/fees/structure'),
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer $token'
-              },
-              body: jsonEncode({'fees': feePayload}),
-            );
-            print('DEBUG: Sync fee structure status: ${feeResponse.statusCode}');
+            if (feePayload.isNotEmpty) {
+              final feeResponse = await http.post(
+                Uri.parse('${ApiConfig.baseUrl}/fees/structure'),
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': 'Bearer $token'
+                },
+                body: jsonEncode({'fees': feePayload}),
+              );
+              print('DEBUG: Sync fee structure status: ${feeResponse.statusCode}');
+            }
+          } else {
+            print('DEBUG: Failed to fetch classes for fee sync: ${classesResponse.statusCode}');
           }
         }
+      } else {
+        print('DEBUG: Academic session sync failed: ${sessionResponse.body}');
       }
     }
 
     // 3. Sync Teachers
     final teachers = await getTeachersDetails();
     if (teachers.isNotEmpty) {
-      print('DEBUG: Syncing teachers...');
+      print('DEBUG: Syncing ${teachers.length} teachers...');
       final teachersJson = teachers.map((t) => t.toJson()).toList();
       final response = await http.post(
         Uri.parse(ApiConfig.teachers),
@@ -362,6 +386,9 @@ class OnboardingRepositoryImpl implements OnboardingRepository {
         body: jsonEncode({'teachers': teachersJson}),
       );
       print('DEBUG: Sync teachers status: ${response.statusCode}');
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        print('DEBUG: Teachers sync failed: ${response.body}');
+      }
     }
   }
 

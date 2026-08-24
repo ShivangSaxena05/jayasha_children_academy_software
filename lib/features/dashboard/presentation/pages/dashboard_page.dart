@@ -254,6 +254,7 @@ class _DashboardPageState extends State<DashboardPage> {
     final totalStaff = counts['teachers'] ?? 0;
     final pendingFeesCount = counts['pendingFeesCount'] ?? 0;
     final totalCollection = (counts['totalCollection'] ?? 0).toDouble();
+    final expectedCollection = (counts['expectedCollection'] ?? 0).toDouble();
 
     final recentAdmissions = _stats['recentStudents'] as List? ?? [];
 
@@ -341,10 +342,10 @@ class _DashboardPageState extends State<DashboardPage> {
                 color: Colors.blue,
               ),
               StatCard(
-                title: 'Total Staff',
-                value: totalStaff.toString(),
-                icon: Icons.people_rounded,
-                color: Colors.orange,
+                title: 'Expected Collection',
+                value: '₹ ${expectedCollection.toStringAsFixed(0)}',
+                icon: Icons.analytics_rounded,
+                color: Colors.purple,
               ),
               StatCard(
                 title: 'Total Collection',

@@ -35,15 +35,25 @@ class SchoolClass {
   });
 
   factory SchoolClass.fromJson(Map<String, dynamic> json) {
-    // Basic mapping from backend Class model
+    // Handle both String list and Object list for sections to be safe
+    var sectionsData = json['sections'] as List?;
+    List<String> parsedSections = [];
+    if (sectionsData != null) {
+      parsedSections = sectionsData.map((s) {
+        if (s is String) return s;
+        if (s is Map && s.containsKey('name')) return s['name'] as String;
+        return s.toString();
+      }).toList();
+    }
+
     return SchoolClass(
       id: json['_id'],
       name: json['name'] ?? '',
       classTeacher: json['classTeacher'] ?? 'Not Assigned',
       assistantTeacher: json['assistantTeacher'],
-      feeStructure: {}, // Will be populated from FeeRepository if needed
+      feeStructure: {},
       timetable: List.generate(6, (p) => List.generate(6, (d) => null)),
-      sections: (json['sections'] as List?)?.map((s) => s['name'] as String).toList() ?? [],
+      sections: parsedSections,
     );
   }
 

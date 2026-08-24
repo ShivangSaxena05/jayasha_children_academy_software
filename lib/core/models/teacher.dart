@@ -182,7 +182,7 @@ class Teacher {
       isClassTeacher: json['isClassTeacher'] ?? false,
       classTeacherOfClass: json['classTeacherOfClass'],
       classTeacherOfSection: json['classTeacherOfSection'],
-      baseSalary: (json['baseSalary'] ?? 0).toDouble(),
+      baseSalary: double.tryParse(json['baseSalary']?.toString() ?? '0') ?? 0.0,
       bankDetails: json['bankDetails'] != null ? BankDetails.fromJson(json['bankDetails']) : null,
       leaves: json['leaves'] != null ? LeaveInfo.fromJson(json['leaves']) : null,
       emergencyContact: json['emergencyContact'] != null ? EmergencyContact.fromJson(json['emergencyContact']) : null,

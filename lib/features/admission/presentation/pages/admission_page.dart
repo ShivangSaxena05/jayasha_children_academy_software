@@ -68,6 +68,13 @@ class _AdmissionPageState extends State<AdmissionPage> {
             _updateSections(_availableClasses[0]);
           }
         });
+      } else {
+        // Fallback: If no active session, try fetching all classes or show a warning
+        debugPrint('Warning: No active academic session found.');
+        await classRepo.fetchClasses(''); // Fetch classes without session filter if allowed
+        setState(() {
+          _availableClasses = classRepo.classes;
+        });
       }
     } catch (e) {
       debugPrint('Error loading admission data: $e');
@@ -349,7 +356,7 @@ class _AdmissionPageState extends State<AdmissionPage> {
                         _buildSummaryRow('Admission No', _admissionNumberController.text),
                         if (_rollNumberController.text.isNotEmpty)
                           _buildSummaryRow('Roll Number', _rollNumberController.text),
-                        _buildSummaryRow('Class', _availableClasses.firstWhere((c) => c.id == _selectedClassId, orElse: () => SchoolClass(name: 'N/A', classTeacher: '', feeStructure: {}, timetable: [])).name),
+                        _buildSummaryRow('Class', _getClassNameById(_selectedClassId)),
                         if (_selectedSection != null)
                           _buildSummaryRow('Section', _selectedSection!),
                         _buildSummaryRow('Father\'s Name', _fatherNameController.text),
@@ -380,7 +387,7 @@ class _AdmissionPageState extends State<AdmissionPage> {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          value: _selectedClassId,
+          value: _availableClasses.any((c) => c.id == _selectedClassId) ? _selectedClassId : null,
           validator: (val) => val == null ? 'Please select a class' : null,
           decoration: InputDecoration(
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -396,6 +403,7 @@ class _AdmissionPageState extends State<AdmissionPage> {
             );
           }).toList(),
           onChanged: (val) {
+            if (val == null) return;
             setState(() {
               _selectedClassId = val;
               final selectedClass = _availableClasses.firstWhere((c) => c.id == val);
@@ -414,10 +422,25 @@ class _AdmissionPageState extends State<AdmissionPage> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: const TextStyle(color: AppColors.textSecondary)),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+          Flexible(
+            child: Text(
+              value,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+              textAlign: TextAlign.end,
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  String _getClassNameById(String? id) {
+    if (id == null) return 'N/A';
+    try {
+      return _availableClasses.firstWhere((c) => c.id == id).name;
+    } catch (_) {
+      return 'N/A';
+    }
   }
 
   Widget _buildTextField(String label, IconData icon, TextEditingController controller, {String? hint, int maxLines = 1, bool readOnly = false, VoidCallback? onTap, TextInputType? keyboardType}) {

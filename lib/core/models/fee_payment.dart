@@ -27,7 +27,7 @@ class FeePayment {
       id: json['_id'],
       studentId: json['student'] is Map ? json['student']['_id'] : json['student'],
       academicSessionId: json['academicSession'] is Map ? json['academicSession']['_id'] : json['academicSession'],
-      amount: (json['amount'] as num).toDouble(),
+      amount: double.tryParse(json['amount']?.toString() ?? '0') ?? 0.0,
       date: DateTime.parse(json['paymentDate'] ?? json['createdAt']),
       mode: PaymentMode.values.firstWhere(
         (e) => e.toString().split('.').last == (json['paymentMode'] ?? 'cash'),

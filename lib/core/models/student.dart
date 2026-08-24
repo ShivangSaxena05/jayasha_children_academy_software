@@ -30,7 +30,7 @@ class Student {
       parentName: json['parentName'] as String,
       age: json['age'] as String,
       contact: json['contact'] as String,
-      pendingAmount: (json['pendingAmount'] as num).toDouble(),
+      pendingAmount: double.tryParse(json['pendingAmount']?.toString() ?? '0') ?? 0.0,
       status: json['status'] as String,
     );
   }
