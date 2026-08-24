@@ -90,11 +90,27 @@ class _DashboardPageState extends State<DashboardPage> {
     } catch (e) {
       debugPrint("Error loading dashboard data: $e");
       if (mounted) {
+        final error = e.toString();
+        if (error.contains('401')) {
+          _handleLogout();
+          return;
+        }
         setState(() {
           _isLoading = false;
           _errorMessage = _getHumanReadableError(e);
         });
       }
+    }
+  }
+
+  Future<void> _handleLogout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('auth_token');
+    if (mounted) {
+      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Session expired. Please log in again.')),
+      );
     }
   }
 

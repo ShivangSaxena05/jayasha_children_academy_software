@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const Principal = require('../models/Principal');
 const Teacher = require('../models/Teacher');
@@ -6,6 +7,12 @@ const Class = require('../models/Class');
 const Student = require('../models/Student');
 const FeePayment = require('../models/FeePayment');
 const FeeStructure = require('../models/FeeStructure');
+const Exam = require('../models/Exam');
+const Mark = require('../models/Mark');
+const Attendance = require('../models/Attendance');
+const Certificate = require('../models/Certificate');
+const LeaveRecord = require('../models/LeaveRecord');
+const SalaryRecord = require('../models/SalaryRecord');
 const generateToken = require('../utils/generateToken');
 
 // @desc    Reset all data (Dev only)
@@ -23,6 +30,12 @@ const resetSetup = async (req, res) => {
       Student.deleteMany({}),
       FeePayment.deleteMany({}),
       FeeStructure.deleteMany({}),
+      Exam.deleteMany({}),
+      Mark.deleteMany({}),
+      Attendance.deleteMany({}),
+      Certificate.deleteMany({}),
+      LeaveRecord.deleteMany({}),
+      SalaryRecord.deleteMany({}),
     ]);
     res.json({ message: 'All data cleared successfully' });
   } catch (error) {
@@ -49,33 +62,80 @@ const setupPrincipal = async (req, res) => {
   const { name, securityPin, principalDetails } = req.body;
 
   try {
+    if (!name || !securityPin || !principalDetails) {
+      return res.status(400).json({ message: 'Please provide all required setup information' });
+    }
+
+    const {
+      dob,
+      gender,
+      email,
+      phone,
+      address,
+      qualification,
+      experience,
+      maritalStatus,
+    } = principalDetails;
+
+    if (
+      !dob ||
+      !gender ||
+      !email ||
+      !phone ||
+      !address ||
+      !qualification ||
+      !experience ||
+      !maritalStatus
+    ) {
+      return res.status(400).json({ message: 'Missing required principal profile details' });
+    }
+
     const userExists = await User.findOne({ role: 'principal' });
     if (userExists) {
       return res.status(400).json({ message: 'Principal already setup. Please login.' });
     }
 
-    // Create the User (Login Credentials - PIN only)
-    const user = await User.create({
-      name,
-      securityPin,
-      role: 'principal',
-    });
+    // Start a session for transaction to ensure atomicity
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    if (user) {
+    try {
+      // Create the User (Login Credentials - PIN only)
+      const user = await User.create(
+        [
+          {
+            name,
+            securityPin,
+            role: 'principal',
+          },
+        ],
+        { session }
+      );
+
       // Create the Principal profile linked to the user
-      await Principal.create({
-        user: user._id,
-        ...principalDetails,
-        name: name,
-      });
+      await Principal.create(
+        [
+          {
+            user: user[0]._id,
+            ...principalDetails,
+            name: name,
+          },
+        ],
+        { session }
+      );
+
+      await session.commitTransaction();
+      session.endSession();
 
       res.status(201).json({
-        _id: user._id,
-        name: user.name,
-        token: generateToken(user._id),
+        _id: user[0]._id,
+        name: user[0].name,
+        token: generateToken(user[0]._id),
       });
-    } else {
-      res.status(400).json({ message: 'Invalid principal data' });
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      throw error;
     }
   } catch (error) {
     res.status(500).json({ message: error.message || 'Server Error' });

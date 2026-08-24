@@ -72,11 +72,12 @@ Ensure the connection between the "First Login" and the app doesn't break.
 ## 4. Technical Checklist for Implementation
 
 ### Backend (Node.js/MongoDB)
-- [ ] **Validation:** Update `userController.js` to ensure a Principal cannot be created without valid profile details.
-- [ ] **Cascading Deletes:** The `reset-setup` route must clean all 14 schemas to prevent orphan records during development testing.
-- [ ] **Unique Constraints:** Ensure `admissionNumber` and `rollNumber` are scoped within the `AcademicSession`.
+- [x] **Validation:** Update `userController.js` to ensure a Principal cannot be created without valid profile details (Implemented with Transactions).
+- [x] **Cascading Deletes:** The `reset-setup` route must clean all 14 schemas to prevent orphan records during development testing.
+- [x] **Unique Constraints:** Ensure `admissionNumber` and `rollNumber` are scoped within the `AcademicSession`.
 
 ### Frontend (Flutter)
-- [ ] **Repository Refactor:** Update `syncOnboardingData` in `OnboardingRepositoryImpl` to handle sequential dependencies (Session -> Classes -> Fees).
-- [ ] **Model Safety:** Ensure all `fromJson` methods in models (Student, Teacher, Fee) match the camelCase vs snake_case keys used in the Node.js controllers.
-- [ ] **Loading UI:** Implement a full-screen "Finalizing School Setup..." overlay during the `syncOnboardingData` call to prevent the user from interrupting the database write.
+- [x] **Model Alignment:** Refactor `lib/core/models/student.dart` and `student_admission.dart` to match `Student.js` (Father/Mother Name, DOB, Guardian Phone) to ensure Admission sync doesn't fail.
+- [x] **Session Recovery:** Implement auto-logout and redirect on `401 Unauthorized` (Token Expired) to prevent dashboard hangs.
+- [x] **Repository Refactor:** Update `syncOnboardingData` in `OnboardingRepositoryImpl` to handle sequential dependencies (Session -> Classes -> Fees).
+- [x] **UI Safety:** Implement "Finalizing Setup" loading overlay in `SecurityPinOnboardingPage` to protect sync operations.

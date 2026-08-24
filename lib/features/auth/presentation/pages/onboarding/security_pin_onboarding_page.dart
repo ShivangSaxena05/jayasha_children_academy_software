@@ -42,9 +42,39 @@ class _SecurityPinOnboardingPageState extends State<SecurityPinOnboardingPage> {
 
       if (success) {
         // Sync previously saved local data (teachers/session) to server now that we have a token
+        if (mounted) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => const Center(
+              child: Card(
+                child: Padding(
+                  padding: EdgeInsets.all(32.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 24),
+                      Text(
+                        "Finalizing Setup...",
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      SizedBox(height: 8),
+                      Text("Synchronizing your school data with the server."),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
         await repo.syncOnboardingData();
 
         if (mounted) {
+          // Pop the loading dialog
+          Navigator.of(context).pop();
+
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => const DashboardPage()),

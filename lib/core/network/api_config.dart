@@ -1,7 +1,7 @@
 class ApiConfig {
   // Use your local IP address instead of localhost so that the Android device can connect to your PC's backend
-  static const String baseUrl = 'https://jayasha-children-academy-software-1.onrender.com/api';
 
+  static const String baseUrl = 'https://jayasha-children-academy-software-1.onrender.com/api';
   static const String checkSetup = '$baseUrl/users/check-setup';
   static const String setupPrincipal = '$baseUrl/users/setup';
   static const String login = '$baseUrl/users/login';

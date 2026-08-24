@@ -42,7 +42,7 @@ class StudentAdmission {
       'name': name,
       'dob': dob,
       'gender': gender,
-      'currentClassId': currentClassId,
+      'currentClass': currentClassId, // Refactored to match backend field 'currentClass'
       'section': section,
       'fatherName': fatherName,
       'motherName': motherName,
@@ -50,7 +50,7 @@ class StudentAdmission {
       'address': address,
       'admissionDate': admissionDate,
       'photoPath': photoPath,
-      'academicSessionId': academicSessionId,
+      'academicSession': academicSessionId, // Refactored to match backend field 'academicSession'
     };
   }
 
@@ -62,7 +62,7 @@ class StudentAdmission {
       name: json['name'],
       dob: json['dob'],
       gender: json['gender'],
-      currentClassId: json['currentClass'] is Map ? json['currentClass']['_id'] : json['currentClass'],
+      currentClassId: json['currentClass'] is Map ? json['currentClass']['_id'] : (json['currentClass'] ?? ''),
       className: json['currentClass'] is Map ? json['currentClass']['name'] : null,
       section: json['section'],
       fatherName: json['fatherName'],
@@ -71,7 +71,45 @@ class StudentAdmission {
       address: json['address'],
       admissionDate: json['admissionDate'],
       photoPath: json['photoPath'],
-      academicSessionId: json['academicSession'] is Map ? json['academicSession']['_id'] : json['academicSession'],
+      academicSessionId: json['academicSession'] is Map ? json['academicSession']['_id'] : (json['academicSession'] ?? ''),
+    );
+  }
+
+  StudentAdmission copyWith({
+    String? id,
+    String? admissionNumber,
+    String? rollNumber,
+    String? name,
+    String? dob,
+    String? gender,
+    String? currentClassId,
+    String? className,
+    String? section,
+    String? fatherName,
+    String? motherName,
+    String? guardianPhone,
+    String? address,
+    String? admissionDate,
+    String? photoPath,
+    String? academicSessionId,
+  }) {
+    return StudentAdmission(
+      id: id ?? this.id,
+      admissionNumber: admissionNumber ?? this.admissionNumber,
+      rollNumber: rollNumber ?? this.rollNumber,
+      name: name ?? this.name,
+      dob: dob ?? this.dob,
+      gender: gender ?? this.gender,
+      currentClassId: currentClassId ?? this.currentClassId,
+      className: className ?? this.className,
+      section: section ?? this.section,
+      fatherName: fatherName ?? this.fatherName,
+      motherName: motherName ?? this.motherName,
+      guardianPhone: guardianPhone ?? this.guardianPhone,
+      address: address ?? this.address,
+      admissionDate: admissionDate ?? this.admissionDate,
+      photoPath: photoPath ?? this.photoPath,
+      academicSessionId: academicSessionId ?? this.academicSessionId,
     );
   }
 }

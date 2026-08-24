@@ -5,7 +5,6 @@ const studentSchema = mongoose.Schema(
     admissionNumber: {
       type: String,
       required: true,
-      unique: true,
     },
     rollNumber: {
       type: String,
@@ -70,10 +69,15 @@ const studentSchema = mongoose.Schema(
 );
 
 // 1. Unique index to prevent duplicate roll numbers within a class/section/session
-// Partial filter allows multiple students to have no roll number (if null/empty)
 studentSchema.index(
   { academicSession: 1, currentClass: 1, section: 1, rollNumber: 1 },
   { unique: true, partialFilterExpression: { rollNumber: { $type: 'string' } } }
+);
+
+// 2. Scoped unique index for admissionNumber within the AcademicSession
+studentSchema.index(
+  { academicSession: 1, admissionNumber: 1 },
+  { unique: true }
 );
 
 // Pre-save hook for validation

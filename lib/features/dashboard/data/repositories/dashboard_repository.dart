@@ -20,8 +20,10 @@ class DashboardRepository {
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
+      } else if (response.statusCode == 401) {
+        throw Exception('401');
       } else {
-        throw Exception('Failed to load dashboard stats');
+        throw Exception('Failed to load dashboard stats: ${response.statusCode}');
       }
     } catch (e) {
       throw Exception('Error connecting to server: $e');
