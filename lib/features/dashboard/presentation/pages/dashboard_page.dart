@@ -255,6 +255,7 @@ class _DashboardPageState extends State<DashboardPage> {
     final pendingFeesCount = counts['pendingFeesCount'] ?? 0;
     final totalCollection = (counts['totalCollection'] ?? 0).toDouble();
     final expectedCollection = (counts['expectedCollection'] ?? 0).toDouble();
+    final attendancePercentage = counts['attendancePercentage'] ?? 0;
 
     final recentAdmissions = _stats['recentStudents'] as List? ?? [];
 
@@ -358,6 +359,12 @@ class _DashboardPageState extends State<DashboardPage> {
                 value: pendingFeesCount.toString(),
                 icon: Icons.warning_amber_rounded,
                 color: Colors.red,
+              ),
+              StatCard(
+                title: 'Attendance Today',
+                value: '$attendancePercentage%',
+                icon: Icons.calendar_today_rounded,
+                color: Colors.orange,
               ),
             ],
           ),
