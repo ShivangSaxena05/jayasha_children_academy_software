@@ -14,7 +14,7 @@ const registerAdmission = async (req, res) => {
       name,
       dob,
       gender,
-      currentClassId, // ID of the Class document
+      currentClass, // Matches frontend JSON key
       section,
       fatherName,
       motherName,
@@ -22,7 +22,7 @@ const registerAdmission = async (req, res) => {
       address,
       admissionDate,
       photoPath,
-      academicSessionId,
+      academicSession, // Matches frontend JSON key
     } = req.body;
 
     // Check if student with admission number already exists
@@ -32,7 +32,7 @@ const registerAdmission = async (req, res) => {
     }
 
     // Verify class exists
-    const classExists = await Class.findById(currentClassId);
+    const classExists = await Class.findById(currentClass);
     if (!classExists) {
       return res.status(400).json({ message: 'Invalid Class selection' });
     }
@@ -44,7 +44,7 @@ const registerAdmission = async (req, res) => {
       name,
       dob,
       gender,
-      currentClass: currentClassId,
+      currentClass,
       section,
       fatherName,
       motherName,
@@ -52,7 +52,7 @@ const registerAdmission = async (req, res) => {
       address,
       admissionDate,
       photoPath,
-      academicSession: academicSessionId,
+      academicSession,
       status: 'active',
     });
 
