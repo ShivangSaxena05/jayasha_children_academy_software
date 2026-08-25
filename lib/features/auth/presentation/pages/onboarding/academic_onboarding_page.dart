@@ -218,7 +218,12 @@ class _AcademicOnboardingPageState extends State<AcademicOnboardingPage> {
                               _sessionNameController,
                               Icons.title,
                               hint: "e.g., 2026-2027",
-                              validator: null,
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return 'Session name is required';
+                                }
+                                return null;
+                              },
                             ),
                             const SizedBox(height: 24),
                             Row(
@@ -228,6 +233,12 @@ class _AcademicOnboardingPageState extends State<AcademicOnboardingPage> {
                                     "Session Start Date",
                                     _startDateController,
                                     () => _selectDate(context, _startDateController),
+                                    validator: (value) {
+                                      if (value == null || value.trim().isEmpty) {
+                                        return 'Start date is required';
+                                      }
+                                      return null;
+                                    },
                                   ),
                                 ),
                                 const SizedBox(width: 20),
@@ -236,6 +247,12 @@ class _AcademicOnboardingPageState extends State<AcademicOnboardingPage> {
                                     "Session End Date",
                                     _endDateController,
                                     () => _selectDate(context, _endDateController),
+                                    validator: (value) {
+                                      if (value == null || value.trim().isEmpty) {
+                                        return 'End date is required';
+                                      }
+                                      return null;
+                                    },
                                   ),
                                 ),
                               ],
@@ -387,7 +404,7 @@ class _AcademicOnboardingPageState extends State<AcademicOnboardingPage> {
     );
   }
 
-  Widget _buildDatePicker(String label, TextEditingController controller, VoidCallback onTap) {
+  Widget _buildDatePicker(String label, TextEditingController controller, VoidCallback onTap, {String? Function(String?)? validator}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -397,7 +414,7 @@ class _AcademicOnboardingPageState extends State<AcademicOnboardingPage> {
           controller: controller,
           readOnly: true,
           onTap: onTap,
-          validator: null,
+          validator: validator,
           decoration: InputDecoration(
             hintText: "DD/MM/YYYY",
             prefixIcon: const Icon(Icons.calendar_today_outlined, color: AppColors.primary),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jayasha_childrens_academy/core/models/academic_session.dart';
 import 'package:jayasha_childrens_academy/core/theme/app_colors.dart';
 import 'package:jayasha_childrens_academy/features/auth/data/repositories/onboarding_repository_impl.dart';
 import 'package:jayasha_childrens_academy/features/auth/presentation/pages/onboarding/security_pin_onboarding_page.dart';
@@ -13,19 +14,37 @@ class FeeStructureOnboardingPage extends StatefulWidget {
 }
 
 class _FeeStructureOnboardingPageState extends State<FeeStructureOnboardingPage> {
-  final List<String> _classes = ['Nursery', 'LKG', 'UKG', '1', '2', '3', '4', '5', '6', '7', '8'];
+  final _repository = OnboardingRepositoryImpl();
+  bool _isLoading = true;
+  List<String> _classes = [];
   final Map<String, Map<String, TextEditingController>> _feeControllers = {};
 
   @override
   void initState() {
     super.initState();
-    for (var cls in _classes) {
-      final fullName = (cls == 'Nursery' || cls == 'LKG' || cls == 'UKG') ? cls : 'Class $cls';
-      _feeControllers[fullName] = {
-        'Monthly Tuition Fee': TextEditingController(text: '0'),
-        'Annual Admission Fee': TextEditingController(text: '0'),
-        'Examination Fee': TextEditingController(text: '0'),
-      };
+    _loadAcademicData();
+  }
+
+  Future<void> _loadAcademicData() async {
+    setState(() => _isLoading = true);
+    try {
+      final session = await _repository.getAcademicSession();
+      if (session != null) {
+        setState(() {
+          _classes = session.classes.map((c) => c.className).toList();
+          for (var className in _classes) {
+            _feeControllers[className] = {
+              'Monthly Tuition Fee': TextEditingController(text: '0'),
+              'Annual Admission Fee': TextEditingController(text: '0'),
+              'Examination Fee': TextEditingController(text: '0'),
+            };
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint("Error loading academic data: $e");
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -130,50 +149,71 @@ class _FeeStructureOnboardingPageState extends State<FeeStructureOnboardingPage>
                   ),
                   const SizedBox(height: 32),
                   Expanded(
-                    child: ListView.builder(
-                      itemCount: _classes.length,
-                      itemBuilder: (context, index) {
-                        final cls = _classes[index];
-                        final fullName = (cls == 'Nursery' || cls == 'LKG' || cls == 'UKG') ? cls : 'Class $cls';
-                        final controllers = _feeControllers[fullName]!;
-
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 24),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(color: Colors.grey.shade200),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  fullName,
-                                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
-                                ),
-                                const SizedBox(height: 20),
-                                Row(
+                    child: _isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : _classes.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Expanded(
-                                      child: _buildFeeField("Tuition Fee", controllers['Monthly Tuition Fee']!),
+                                    Icon(Icons.calendar_today_outlined, size: 64, color: Colors.grey.shade300),
+                                    const SizedBox(height: 16),
+                                    const Text(
+                                      "No classes found. Please set up academic session first.",
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
                                     ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: _buildFeeField("Admission Fee", controllers['Annual Admission Fee']!),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: _buildFeeField("Exam Fee", controllers['Examination Fee']!),
+                                    const SizedBox(height: 16),
+                                    ElevatedButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text("Go Back"),
                                     ),
                                   ],
                                 ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                              )
+                            : ListView.builder(
+                                itemCount: _classes.length,
+                                itemBuilder: (context, index) {
+                                  final className = _classes[index];
+                                  final controllers = _feeControllers[className]!;
+
+                                  return Card(
+                                    margin: const EdgeInsets.only(bottom: 24),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      side: BorderSide(color: Colors.grey.shade200),
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(20),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            className,
+                                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
+                                          ),
+                                          const SizedBox(height: 20),
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: _buildFeeField("Tuition Fee", controllers['Monthly Tuition Fee']!),
+                                              ),
+                                              const SizedBox(width: 16),
+                                              Expanded(
+                                                child: _buildFeeField("Admission Fee", controllers['Annual Admission Fee']!),
+                                              ),
+                                              const SizedBox(width: 16),
+                                              Expanded(
+                                                child: _buildFeeField("Exam Fee", controllers['Examination Fee']!),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
                   ),
                   const SizedBox(height: 32),
                   Row(

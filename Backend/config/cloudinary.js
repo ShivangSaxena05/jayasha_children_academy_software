@@ -22,7 +22,7 @@ const storage = new CloudinaryStorage({
 
     return {
       folder: folder,
-      allowed_formats: ['jpg', 'png', 'pdf'],
+      allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
       public_id: `${Date.now()}-${file.originalname.split('.')[0]}`,
     };
   },

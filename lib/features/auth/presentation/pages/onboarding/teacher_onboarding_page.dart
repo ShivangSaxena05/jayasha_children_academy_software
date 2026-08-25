@@ -278,9 +278,10 @@ class _AddTeacherDialogState extends State<AddTeacherDialog> {
   final List<String> _selectedSubjects = [];
   final _otherSubjectController = TextEditingController();
 
-  final List<String> _availableClasses = ['Nursery', 'LKG', 'UKG', '1', '2', '3', '4', '5', '6', '7', '8'];
+  List<String> _availableClasses = [];
+  Map<String, List<String>> _classToSectionsMap = {};
   final List<String> _selectedClasses = [];
-  final Map<String, TextEditingController> _classSectionsControllers = {};
+  final Map<String, List<String>> _selectedSectionsForClasses = {};
 
   bool _isClassTeacher = false;
   String? _classTeacherClass;
@@ -290,6 +291,31 @@ class _AddTeacherDialogState extends State<AddTeacherDialog> {
   File? _aadhaarFrontFile;
   File? _aadhaarBackFile;
   final ImagePicker _picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAcademicData();
+  }
+
+  Future<void> _loadAcademicData() async {
+    setState(() => _isLoading = true);
+    try {
+      final session = await _repository.getAcademicSession();
+      if (session != null) {
+        setState(() {
+          _availableClasses = session.classes.map((c) => c.className).toList();
+          _classToSectionsMap = {
+            for (var c in session.classes) c.className: c.sections
+          };
+        });
+      }
+    } catch (e) {
+      debugPrint("Error loading academic data: $e");
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
 
   Future<void> _pickImage(bool isProfile, {bool isFront = true}) async {
     try {
@@ -328,9 +354,6 @@ class _AddTeacherDialogState extends State<AddTeacherDialog> {
     _qualificationController.dispose();
     _experienceController.dispose();
     _otherSubjectController.dispose();
-    for (var controller in _classSectionsControllers.values) {
-      controller.dispose();
-    }
     super.dispose();
   }
 
@@ -389,9 +412,14 @@ class _AddTeacherDialogState extends State<AddTeacherDialog> {
     bool isValid = false;
     if (_currentPage == 0) {
       isValid = _formKey1.currentState!.validate();
-      if (isValid && _dobController.text.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select Date of Birth')));
-        isValid = false;
+      if (isValid) {
+        if (_dobController.text.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select Date of Birth')));
+          isValid = false;
+        } else if (_addressController.text.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter Residential Address')));
+          isValid = false;
+        }
       }
     } else if (_currentPage == 1) {
       isValid = _formKey2.currentState!.validate();
@@ -682,100 +710,141 @@ class _AddTeacherDialogState extends State<AddTeacherDialog> {
             ),
           ],
           const SizedBox(height: 24),
-          const Text("Select Classes & Specify Sections", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+          const Text("Select Classes & Sections", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
           const SizedBox(height: 8),
-          const Text("Tap a class to select it, then optionally add sections (e.g. A, B).", style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+          const Text("Select classes and sections this teacher will teach.", style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _availableClasses.map((cls) {
-              final isSelected = _selectedClasses.contains(cls);
-              return Column(
-                mainAxisSize: MainAxisSize.min,
+          if (_availableClasses.isEmpty)
+             const Text("No classes found. Please set up academic session first.", style: TextStyle(color: AppColors.error)),
+          ..._availableClasses.map((cls) {
+            final isClassSelected = _selectedClasses.contains(cls);
+            final availableSections = _classToSectionsMap[cls] ?? [];
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                FilterChip(
+                  label: Text(cls),
+                  selected: isClassSelected,
+                  onSelected: (selected) {
+                    setState(() {
+                      if (selected) {
+                        _selectedClasses.add(cls);
+                        _selectedSectionsForClasses[cls] = [];
+                      } else {
+                        _selectedClasses.remove(cls);
+                        _selectedSectionsForClasses.remove(cls);
+                        // Reset class teacher if this class was selected
+                        if (_classTeacherClass == cls) {
+                          _classTeacherClass = null;
+                          _classTeacherSection = null;
+                        }
+                      }
+                    });
+                  },
+                  selectedColor: AppColors.accent.withOpacity(0.2),
+                ),
+                if (isClassSelected && availableSections.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 16.0, top: 8.0, bottom: 8.0),
+                    child: Wrap(
+                      spacing: 8,
+                      children: availableSections.map((section) {
+                        final isSectionSelected = _selectedSectionsForClasses[cls]?.contains(section) ?? false;
+                        return ChoiceChip(
+                          label: Text("Section $section"),
+                          selected: isSectionSelected,
+                          onSelected: (selected) {
+                            setState(() {
+                              if (selected) {
+                                _selectedSectionsForClasses[cls]!.add(section);
+                              } else {
+                                _selectedSectionsForClasses[cls]!.remove(section);
+                                if (_classTeacherClass == cls && _classTeacherSection == section) {
+                                  _classTeacherSection = null;
+                                }
+                              }
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                const SizedBox(height: 8),
+              ],
+            );
+          }),
+          const SizedBox(height: 24),
+          if (_selectedClasses.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Column(
                 children: [
-                  ChoiceChip(
-                    label: Text(cls),
-                    selected: isSelected,
-                    onSelected: (selected) {
+                SwitchListTile(
+                    title: const Text("Is this teacher a Class Teacher?", style: TextStyle(fontWeight: FontWeight.bold)),
+                    value: _isClassTeacher,
+                    activeColor: AppColors.primary,
+                    onChanged: (value) {
                       setState(() {
-                        if (selected) {
-                          _selectedClasses.add(cls);
-                          _classSectionsControllers[cls] = TextEditingController();
-                        } else {
-                          _selectedClasses.remove(cls);
-                          _classSectionsControllers.remove(cls)?.dispose();
+                        _isClassTeacher = value;
+                        if (_isClassTeacher && _selectedClasses.isNotEmpty) {
+                          _classTeacherClass ??= _selectedClasses.first;
+                          final sections = _selectedSectionsForClasses[_classTeacherClass!];
+                          if (sections != null && sections.isNotEmpty) {
+                            _classTeacherSection ??= sections.first;
+                          }
                         }
                       });
                     },
-                    selectedColor: AppColors.accent.withOpacity(0.2),
                   ),
-                ],
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 16),
-          if (_selectedClasses.isNotEmpty) ...[
-            const Text("Sections for Selected Classes:", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-            const SizedBox(height: 8),
-            ..._selectedClasses.map((cls) => Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
-              child: Row(
-                children: [
-                  Container(
-                    width: 80,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: AppColors.accent.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
+                  if (_isClassTeacher) ...[
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildDropdown(
+                            "Class Teacher Of (Class)",
+                            _selectedClasses,
+                            _classTeacherClass ?? (_selectedClasses.isNotEmpty ? _selectedClasses.first : null),
+                            (v) {
+                              setState(() {
+                                _classTeacherClass = v;
+                                final sections = _selectedSectionsForClasses[v!];
+                                if (sections != null && sections.isNotEmpty) {
+                                  _classTeacherSection = sections.first;
+                                } else {
+                                  _classTeacherSection = null;
+                                }
+                              });
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        if (_classTeacherClass != null && (_selectedSectionsForClasses[_classTeacherClass!]?.isNotEmpty ?? false))
+                          Expanded(
+                            child: _buildDropdown(
+                              "Class Teacher Of (Section)",
+                              _selectedSectionsForClasses[_classTeacherClass!]!,
+                              _classTeacherSection ?? (_selectedSectionsForClasses[_classTeacherClass!]!.isNotEmpty ? _selectedSectionsForClasses[_classTeacherClass!]!.first : null),
+                              (v) => setState(() => _classTeacherSection = v),
+                            ),
+                          )
+                        else if (_classTeacherClass != null)
+                          const Expanded(child: Padding(
+                            padding: EdgeInsets.only(top: 24.0),
+                            child: Text("No sections for this class", style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                          )),
+                      ],
                     ),
-                    child: Text("Class $cls", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: _classSectionsControllers[cls],
-                      decoration: InputDecoration(
-                        hintText: "Sections (e.g. A, B) - Optional",
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                    ),
-                  ),
+                  ],
                 ],
               ),
-            )),
-          ],
-          const SizedBox(height: 24),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade50,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade200),
             ),
-            child: Column(
-              children: [
-                SwitchListTile(
-                  title: const Text("Is this teacher a Class Teacher?", style: TextStyle(fontWeight: FontWeight.bold)),
-                  value: _isClassTeacher,
-                  activeColor: AppColors.primary,
-                  onChanged: (value) => setState(() => _isClassTeacher = value),
-                ),
-                if (_isClassTeacher) ...[
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(child: _buildDropdown("Class Teacher Of (Class)", _availableClasses, _classTeacherClass ?? _availableClasses.first, (v) => setState(() => _classTeacherClass = v))),
-                      const SizedBox(width: 16),
-                      Expanded(child: _buildTextField("Class Teacher Of (Section)", TextEditingController(text: _classTeacherSection), Icons.label_important_outline, onChanged: (v) => _classTeacherSection = v)),
-                    ],
-                  ),
-                ],
-              ],
-            ),
-          ),
           const SizedBox(height: 40),
         ],
       ),
@@ -794,12 +863,9 @@ class _AddTeacherDialogState extends State<AddTeacherDialog> {
 
     final List<String> allSections = [];
     for (var cls in _selectedClasses) {
-      final sectionText = _classSectionsControllers[cls]?.text ?? '';
-      if (sectionText.isNotEmpty) {
-        final sections = sectionText.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty);
-        for (var s in sections) {
-          allSections.add("$cls-$s");
-        }
+      final sections = _selectedSectionsForClasses[cls] ?? [];
+      for (var s in sections) {
+        allSections.add("$cls-$s");
       }
     }
 
@@ -844,7 +910,7 @@ class _AddTeacherDialogState extends State<AddTeacherDialog> {
       classesTeaching: _selectedClasses,
       sections: allSections,
       isClassTeacher: _isClassTeacher,
-      classTeacherOfClass: _isClassTeacher ? (_classTeacherClass ?? _availableClasses.first) : null,
+      classTeacherOfClass: _isClassTeacher ? (_classTeacherClass ?? (_selectedClasses.isNotEmpty ? _selectedClasses.first : '')) : null,
       classTeacherOfSection: _isClassTeacher ? _classTeacherSection : null,
     );
     Navigator.pop(context, teacher);
@@ -904,7 +970,12 @@ class _AddTeacherDialogState extends State<AddTeacherDialog> {
           maxLines: maxLines,
           onChanged: onChanged,
           readOnly: readOnly,
-          validator: validator ?? (value) => null, // value == null || value.isEmpty ? 'Required' : null,
+          validator: validator ?? (value) {
+            if (value == null || value.trim().isEmpty) {
+              return '$label is required';
+            }
+            return null;
+          },
           decoration: InputDecoration(
             hintText: hint,
             prefixIcon: Icon(icon, color: AppColors.primary, size: 20),
@@ -928,7 +999,12 @@ class _AddTeacherDialogState extends State<AddTeacherDialog> {
           controller: controller,
           readOnly: true,
           onTap: () => _selectDate(context, controller, isDOB: isDOB),
-          validator: (value) => null, // value == null || value.isEmpty ? 'Required' : null,
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return '$label is required';
+            }
+            return null;
+          },
           decoration: InputDecoration(
             hintText: "DD/MM/YYYY",
             prefixIcon: const Icon(Icons.calendar_today_outlined, color: AppColors.primary, size: 20),
@@ -942,14 +1018,14 @@ class _AddTeacherDialogState extends State<AddTeacherDialog> {
     );
   }
 
-  Widget _buildDropdown(String label, List<String> items, String value, Function(String?) onChanged) {
+  Widget _buildDropdown(String label, List<String> items, String? value, Function(String?) onChanged) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          value: value,
+          value: (value != null && items.contains(value)) ? value : (items.isNotEmpty ? items.first : null),
           items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
           onChanged: onChanged,
           decoration: InputDecoration(
